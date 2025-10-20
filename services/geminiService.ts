@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import type { ExtractedData } from '../types';
 
 const apiKey = process.env.API_KEY;
@@ -18,32 +18,6 @@ export const isApiConfigured = (): boolean => {
   return !!ai;
 };
 
-const responseSchema = {
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      row: {
-        type: Type.STRING,
-        description: 'The row number from the first column.',
-      },
-      J: {
-        type: Type.STRING,
-        description: 'The value from column J for this row.',
-      },
-      K: {
-        type: Type.STRING,
-        description: 'The value from column K for this row.',
-      },
-      L: {
-        type: Type.STRING,
-        description: 'The value from column L for this row.',
-      },
-    },
-    required: ['row', 'J', 'K', 'L'],
-  },
-};
-
 export const extractDataFromImage = async (base64Image: string, mimeType: string): Promise<ExtractedData> => {
   if (!ai) {
     throw new Error("Application not configured: API Key is missing. Please ensure the API_KEY environment variable is set for the deployment environment.");
@@ -54,12 +28,14 @@ export const extractDataFromImage = async (base64Image: string, mimeType: string
       contents: {
         parts: [
           {
-            text: `Analyze the handwritten data in the provided image. Extract the tabular data into a structured format. 
-            The image contains columns labeled 'J', 'K', and 'L', prefixed by a row number. 
-            Transcribe the data precisely as written, including fractions (e.g., "4'-7 1/8").
-            Return the data as a JSON array where each object represents a row. 
-            Each object should have four keys: 'row', 'J', 'K', and 'L'. 
-            The 'row' key should correspond to the number at the beginning of each line.`
+            text: `You are an expert at transcribing handwritten tabular data from images. 
+            Your task is to analyze the provided image, identify the column headers, and extract all rows of data. 
+            Return the result as a valid JSON array of objects. 
+            Each object in the array represents a single row from the table. 
+            The keys of each object must be the column headers identified from the image. 
+            The values must be the corresponding data for that row and column. 
+            Transcribe the data exactly as it appears. 
+            Do not add any explanatory text, markdown, or anything else; your entire response must be only the JSON data.`
           },
           {
             inlineData: {
@@ -71,7 +47,6 @@ export const extractDataFromImage = async (base64Image: string, mimeType: string
       },
       config: {
         responseMimeType: "application/json",
-        responseSchema: responseSchema,
       },
     });
 
@@ -82,6 +57,9 @@ export const extractDataFromImage = async (base64Image: string, mimeType: string
   } catch (error) {
     console.error("Error extracting data from image:", error);
     if (error instanceof Error) {
+        if (error.message.includes('JSON')) {
+          throw new Error("The AI returned data in an unexpected format. This can sometimes happen with complex handwriting. Please try again or use a clearer image.");
+        }
         throw new Error(`Failed to process image with Gemini API: ${error.message}`);
     }
     throw new Error("An unknown error occurred while processing the image.");
