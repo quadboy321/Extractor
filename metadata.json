@@ -1,0 +1,5 @@
+{
+  "name": "Handwritten Data Extractor",
+  "description": "Upload an image of handwritten tabular data to extract it into a digital format and download it as a CSV file. The AI will transcribe the data and format it for you.",
+  "requestFramePermissions": []
+}
